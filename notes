@@ -1,0 +1,153 @@
+Docker deployment - using example from event-bus service
+
+1. Get Dockerfile and .dockerignore ready in the directory of that service
+
+2. Build an image for the event bus
+
+                     name of the service
+                            |
+                     -------------------
+     docker build -t veldin/event-bus .
+     ---------------
+            |
+     default command
+
+3. Push the image that was built  to the Docker Hub
+
+               name of the image we built
+                        |
+                 ----------------
+     docker push veldin/event-bus
+     -----------
+            |
+     default command
+
+4. Create a deployment for Event Bus
+   In k8s/kubernetes folder create event-bus-depl.yaml configuration file where info about deployment will be
+   There is default configuration file that will be unique for all services, only change the names:
+
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: event-bus-depl    ‹--- change name here
+   spec:
+     replicas: 1
+     selector:
+       matchLabels:
+         app: event-bus    ‹--- change name here
+     template:
+       metadata:
+         labels:
+           app: event-bus    ‹--- change name here
+       spec:
+         containers:
+           - name: event-bus    ‹--- change name here
+             image: veldins/event-bus    ‹--- change name here
+
+5. Apply the configuration file we created to kubernetes using "kubectl" in k8s/kubernetes terminal/directory
+
+                 name of the conf file
+                           |
+                     -------------------
+    kubectl apply -f event-bus-depl.yaml
+    ----------------
+            |
+     default command
+
+6. Get info about pods to check if the pod is created
+
+    kubectl get pods
+
+7. Create Clister IP Service to allow access to our services(in this case posts pod and event-bus pod)
+   In event-bus-depl.yaml configuration, at the end add "---" which will divide the objects in one single .yaml file.
+   Add the following:
+
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: event-bus-srv
+    spec:
+      selector:
+        app: event-bus
+      ports:
+        - name: event-bus
+          protocol: TCP
+          port: 4005
+          targetPort: 4005
+
+8. Apply the new configuration  we created to kubernetes using "kubectl" in k8s/kubernetes terminal/directory
+
+                 name of the conf file
+                           |
+                     -------------------
+    kubectl apply -f event-bus-depl.yaml
+    ----------------
+            |
+     default command
+
+9. Get info about services to check if the service is created
+
+    kubectl get services
+
+10. Do the same from steps 8 and 9 for the posts-depl.yaml file and change the names as following:
+
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: posts-cluestrip-srv    ‹--- change name here
+    spec:
+      selector:
+        app: posts    ‹--- change name here
+      ports:
+        - name: posts    ‹--- change name here
+          protocol: TCP
+          port: 4000    ‹--- change port here
+          targetPort: 4000    ‹--- change port here
+
+11. Apply the new configuration  we created to kubernetes using "kubectl" in k8s/kubernetes terminal/directory
+
+                 name of the conf file
+                           |
+                     -------------------
+    kubectl apply -f posts-depl.yaml
+    ----------------
+            |
+     default command
+
+    Now we have created cluesterip service that points to posts
+
+12. Get info about services to check if the service is created
+
+    kubectl get services
+
+13.Change the routes in React from localhost to the ones defined in kubernetes services(ex: event-bus-srv:4005 or posts-srv:4000)
+
+Method 2 - updating image used by a deployment
+
+1. Do the build and post for both services in terminal
+
+    docker build -t veldins/event-bus .
+    docker push veldins/event-bus
+
+    docker build -t veldins/posts .
+    docker push veldins/posts
+
+2. Restart deployment using commands
+
+    kubectl rollout restart deployment event-bus-depl
+    kubectl rollout restart deployment posts-depl
+
+
+Verifying communication
+
+1. Run command to see the actual ports and addresses that should be used for routing
+
+    kubectl get services
+
+Apply all config files at the same time(kubernetes)
+
+    kubectl apply -f .
+
+
